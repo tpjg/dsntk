@@ -1,13 +1,24 @@
 //! # Evaluator for Java external functions
+//!
+//! The transport is behind the `java-bridge` feature (off by default). With it
+//! off there is no HTTP client in the build at all, and an `external`
+//! invocation answers a FEEL `null` carrying a reason — the same shape this
+//! module already returns for a malformed signature or an unreachable JVM, so
+//! nothing above it changes.
 
 use dsntk_feel::dto::ValueDto;
 use dsntk_feel::value_null;
 use dsntk_feel::values::Value;
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "java-bridge")]
+use serde::Deserialize;
+use serde::Serialize;
+#[cfg(feature = "java-bridge")]
 use std::sync::LazyLock;
 
+#[cfg(feature = "java-bridge")]
 static CLIENT: LazyLock<reqwest::blocking::Client> = LazyLock::new(reqwest::blocking::Client::new);
 
+#[cfg(feature = "java-bridge")]
 const JAVA_RPC_SERVER_URL: &str = "http://127.0.0.1:22023/api/rest/v1/rpc/evaluate";
 
 #[derive(Serialize)]
@@ -26,6 +37,7 @@ struct RequestDto {
   argument_values: Vec<ValueDto>,
 }
 
+#[cfg(feature = "java-bridge")]
 #[derive(Deserialize)]
 struct ResponseDto {
   /// Response payload when calling external function succeeds.
@@ -71,7 +83,13 @@ pub fn evaluate_external_java_function(class_name: &str, method_signature: &str,
     parameter_types,
     argument_values,
   };
-  match CLIENT.post(JAVA_RPC_SERVER_URL).json(&request_dto).send() {
+  invoke(&request_dto)
+}
+
+/// Sends the prepared request to the Java RPC server.
+#[cfg(feature = "java-bridge")]
+fn invoke(request_dto: &RequestDto) -> Value {
+  match CLIENT.post(JAVA_RPC_SERVER_URL).json(request_dto).send() {
     Ok(response) => match response.json::<ResponseDto>() {
       Ok(response_dto) => {
         if let Some(reason) = response_dto.error {
@@ -89,4 +107,16 @@ pub fn evaluate_external_java_function(class_name: &str, method_signature: &str,
     },
     Err(reason) => value_null!("{}", reason),
   }
+}
+
+/// Refuses the invocation: this build has no HTTP client.
+///
+/// A `null` with a reason rather than a panic or an error type.
+#[cfg(not(feature = "java-bridge"))]
+fn invoke(request_dto: &RequestDto) -> Value {
+  value_null!(
+    "external Java function '{}.{}' was not invoked: this build of dsntk-feel-evaluator was compiled without the 'java-bridge' feature, so it contains no HTTP client",
+    request_dto.class_name,
+    request_dto.method_name
+  )
 }

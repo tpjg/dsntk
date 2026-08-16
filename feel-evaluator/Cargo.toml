@@ -13,7 +13,7 @@ edition = { workspace = true }
 
 [dependencies]
 regex = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 dsntk-common = { workspace = true }
@@ -22,3 +22,21 @@ dsntk-feel-parser = { workspace = true }
 dsntk-feel-regex = { workspace = true }
 dsntk-feel-temporal = { workspace = true }
 dsntk-macros = { workspace = true }
+
+# The external-Java bridge, and with it the only HTTP client in the toolkit.
+#
+# FEEL's `external` function invocation POSTs to a JVM on `127.0.0.1:22023`
+# (`evaluator_java.rs`). This prevents dsntk on `wasm32-unknown-unknown`
+# since `reqwest::blocking` does not exist on that target. Also there are
+# other reasons why a http client inside the evaluator may be unwanted.
+#
+# Off by default here, so a plain build has no HTTP client and no network
+# capability. With it off, an `external` invocation returns a FEEL `null` with
+# a reason, which is exactly what the bridge already does for every other
+# failure — so nothing above this crate changes shape.
+##
+# **For upstream:** adding `java-bridge` to a `default` list below preserves
+# today's behaviour exactly for every existing consumer.
+[features]
+default = []
+java-bridge = ["dep:reqwest"]

@@ -12,6 +12,27 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-dfp-number-sys = { workspace = true }
+dfp-number-sys = { workspace = true, optional = true }
+fastnum = { workspace = true, optional = true }
 dsntk-common = { workspace = true }
 dsntk-macros = { workspace = true }
+
+# Two interchangeable decimal128 backends, selected by feature.
+#
+# `use-fastnum` is the default because it is the one that reaches
+# `wasm32-unknown-unknown`: `dfp-number-sys` binds Intel's decimal C library
+# through `cc`, and there is no C toolchain in a browser. Since this crate sits
+# under `dsntk-feel`, every other crate in the workspace inherits whichever
+# backend is chosen — which is why this one feature decides whether the whole
+# toolkit can be compiled to WebAssembly.
+#
+# Both are additive and safe under Cargo's feature unification: enabling
+# `use-dfp` somewhere does not switch `use-fastnum` off anywhere, and if both
+# end up enabled the pure-Rust one wins (see `lib.rs`).
+#
+# **For upstream:** making `use-dfp` the default instead is a one-line change
+# below, and preserves today's behaviour exactly for every existing consumer.
+[features]
+default = ["use-fastnum"]
+use-fastnum = ["dep:fastnum"]
+use-dfp = ["dep:dfp-number-sys"]
