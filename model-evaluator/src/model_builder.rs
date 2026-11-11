@@ -20,6 +20,7 @@ pub struct EvaluatorBuilders {
   pub decision_service_evaluator: DecisionServiceEvaluator,
   pub invocables: Invocables,
   pub information_item_types: InformationItemTypes,
+  pub item_definition_type_evaluator: ItemDefinitionTypeEvaluator,
 }
 
 /// Model builder.
@@ -108,6 +109,7 @@ impl ModelBuilder {
 
 impl From<ModelBuilder> for EvaluatorBuilders {
   fn from(value: ModelBuilder) -> Self {
+    let information_item_types = value.item_definition_type_evaluator.information_item_types();
     Self {
       input_data_evaluator: value.input_data_evaluator,
       item_definition_evaluator: value.item_definition_evaluator,
@@ -115,7 +117,8 @@ impl From<ModelBuilder> for EvaluatorBuilders {
       decision_evaluator: value.decision_evaluator,
       decision_service_evaluator: value.decision_service_evaluator,
       invocables: value.invocables.into_inner(),
-      information_item_types: value.item_definition_type_evaluator.information_item_types(),
+      information_item_types,
+      item_definition_type_evaluator: value.item_definition_type_evaluator,
     }
   }
 }

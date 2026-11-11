@@ -5,12 +5,13 @@ use crate::decision::DecisionEvaluator;
 use crate::decision_service::DecisionServiceEvaluator;
 use crate::input_data::InputDataEvaluator;
 use crate::item_definition::ItemDefinitionEvaluator;
+use crate::item_definition_type::ItemDefinitionTypeEvaluator;
 use crate::model_builder::{EvaluatorBuilders, ModelBuilder};
 use crate::model_definitions::{DefKey, InvocableType, Invocables};
 use dsntk_common::Result;
 use dsntk_feel::context::FeelContext;
 use dsntk_feel::values::Value;
-use dsntk_feel::{Name, value_null};
+use dsntk_feel::{FeelType, Name, value_null};
 use dsntk_model::Definitions;
 use std::sync::Arc;
 
@@ -30,6 +31,8 @@ pub struct ModelEvaluator {
   invocables: Invocables,
   /// Map of global information item types defined in this model evaluator.
   global_context: FeelContext,
+  /// Resolves type references to FEEL types.
+  item_definition_type_evaluator: ItemDefinitionTypeEvaluator,
 }
 
 impl From<ModelBuilder> for ModelEvaluator {
@@ -48,6 +51,7 @@ impl From<ModelBuilder> for ModelEvaluator {
       decision_service_evaluator: builders.decision_service_evaluator,
       invocables: builders.invocables,
       global_context,
+      item_definition_type_evaluator: builders.item_definition_type_evaluator,
     }
   }
 }
@@ -86,6 +90,14 @@ impl ModelEvaluator {
   /// Returns a reference to decision service evaluator.
   pub fn decision_service_evaluator(&self) -> &DecisionServiceEvaluator {
     &self.decision_service_evaluator
+  }
+
+  /// Returns the FEEL type that `type_ref`, written in the model with `namespace`,
+  /// resolves to: a simple built-in type or an item definition. `None` when it
+  /// resolves to neither — the evaluators then produce `null` wherever that type
+  /// is applied, so a caller can refuse such a model before evaluating it.
+  pub fn information_item_type(&self, namespace: &str, type_ref: &str) -> Option<FeelType> {
+    self.item_definition_type_evaluator.information_item_type(namespace, type_ref)
   }
 
   /// Returns a reference to invocables in model evaluator.
