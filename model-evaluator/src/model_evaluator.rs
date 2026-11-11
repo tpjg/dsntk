@@ -7,12 +7,12 @@ use crate::input_data::InputDataEvaluator;
 use crate::item_definition::ItemDefinitionEvaluator;
 use crate::item_definition_type::ItemDefinitionTypeEvaluator;
 use crate::model_builder::{EvaluatorBuilders, ModelBuilder};
-use crate::model_definitions::{DefKey, InvocableType, Invocables};
+use crate::model_definitions::{DefImport, DefKey, InvocableType, Invocables, information_item_type_key};
 use dsntk_common::Result;
 use dsntk_feel::context::FeelContext;
 use dsntk_feel::values::Value;
 use dsntk_feel::{FeelType, Name, value_null};
-use dsntk_model::Definitions;
+use dsntk_model::{Definitions, DmnElement};
 use std::sync::Arc;
 
 /// Model evaluator.
@@ -92,12 +92,23 @@ impl ModelEvaluator {
     &self.decision_service_evaluator
   }
 
-  /// Returns the FEEL type that `type_ref`, written in the model with `namespace`,
+  /// Returns the FEEL type that `type_ref`, looked up in `namespace` as written,
   /// resolves to: a simple built-in type or an item definition. `None` when it
-  /// resolves to neither — the evaluators then produce `null` wherever that type
-  /// is applied, so a caller can refuse such a model before evaluating it.
+  /// resolves to neither. This is how an item definition's own type reference is
+  /// resolved.
   pub fn information_item_type(&self, namespace: &str, type_ref: &str) -> Option<FeelType> {
     self.item_definition_type_evaluator.information_item_type(namespace, type_ref)
+  }
+
+  /// Returns the FEEL type that a variable's `type_ref`, written in `definitions`,
+  /// resolves to, resolved as the evaluators resolve an information item's type:
+  /// a reference prefixed with an import's name is looked up in that import's
+  /// namespace. `None` when it resolves to neither a simple built-in type nor an
+  /// item definition.
+  pub fn variable_type(&self, definitions: &Definitions, type_ref: &str) -> Option<FeelType> {
+    let imports: Vec<DefImport> = definitions.imports().iter().map(DefImport::new).collect();
+    let (namespace, type_ref) = information_item_type_key(definitions.namespace(), type_ref, &imports);
+    self.item_definition_type_evaluator.information_item_type(&namespace, &type_ref)
   }
 
   /// Returns a reference to invocables in model evaluator.

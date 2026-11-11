@@ -126,22 +126,26 @@ pub struct DefInformationItem {
 impl DefInformationItem {
   /// Creates [DefInformationItem] from [InformationItem].
   pub fn new(information_item: &InformationItem, imports: &[DefImport]) -> Self {
-    let type_ref_name = Name::from(information_item.type_ref().clone());
-    let qname = QualifiedName::from(type_ref_name);
-    if qname.len() == 2 {
-      // type reference is prefixed with the import name
-      let import_name = qname.first().unwrap(); // unwrap is safe
-      let namespace = get_import_namespace(import_name, imports).unwrap_or(information_item.namespace().to_string());
-      let name = information_item.feel_name().clone();
-      let type_ref = qname.get(1).unwrap().to_string(); // unwrap is safe
-      Self { namespace, name, type_ref }
-    } else {
-      // type reference has no import prefix
-      let namespace = information_item.namespace().to_string();
-      let type_ref = information_item.type_ref().clone();
-      let name = information_item.feel_name().clone();
-      Self { namespace, name, type_ref }
-    }
+    let (namespace, type_ref) = information_item_type_key(information_item.namespace(), information_item.type_ref(), imports);
+    let name = information_item.feel_name().clone();
+    Self { namespace, name, type_ref }
+  }
+}
+
+/// Where an information item's `type_ref`, written in a model with `namespace`, is looked up:
+/// a reference prefixed with an import's name in that import's namespace, without the prefix;
+/// anything else in the model's own namespace, as written.
+pub fn information_item_type_key(namespace: &str, type_ref: &str, imports: &[DefImport]) -> (String, String) {
+  let qname = QualifiedName::from(Name::from(type_ref.to_string()));
+  if qname.len() == 2 {
+    // type reference is prefixed with the import name
+    let import_name = qname.first().unwrap(); // unwrap is safe
+    let namespace = get_import_namespace(import_name, imports).unwrap_or(namespace.to_string());
+    let type_ref = qname.get(1).unwrap().to_string(); // unwrap is safe
+    (namespace, type_ref)
+  } else {
+    // type reference has no import prefix
+    (namespace.to_string(), type_ref.to_string())
   }
 }
 
